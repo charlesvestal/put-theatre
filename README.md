@@ -7,6 +7,7 @@ This project fetches a list of trending movies from a Trakt-powered RSS feed and
 - Only five items from the RSS feed are seeded at any time.
 - Each week the `/weekly-downloads` folder is cleared and refilled with five new torrents.
 - Magnet links are detected from standard `<link>` elements or enclosure links in the RSS feed.
+- Optionally sends an email summary with movie posters and descriptions.
 
 ## Requirements
 
@@ -52,6 +53,7 @@ This project fetches a list of trending movies from an RSS feed and seeds a rota
 - Selects up to five random items from the RSS feed each run.
 - Clears the configured Put.io folder and refills it with the selected torrents.
 - Detects magnet URLs from `<link>` elements or enclosure links in the RSS feed.
+- Optionally emails a summary with posters and descriptions after seeding.
 
 ## Requirements
 
@@ -66,6 +68,14 @@ Create a `.env` file with the following variables:
 RSS_URL=<RSS feed URL>
 PUTIO_TOKEN=<Put.io OAuth access token>
 WEEKLY_FOLDER_ID=<Put.io folder ID to seed>
+# optional email configuration
+SMTP_SERVER=<SMTP server>
+SMTP_PORT=<SMTP port, default 587>
+SMTP_USERNAME=<SMTP username>
+SMTP_PASSWORD=<SMTP password>
+EMAIL_FROM=<from address>
+EMAIL_TO=<destination address>
+OMDB_API_KEY=<OMDb API key for movie details>
 ```
 
 ## Usage
