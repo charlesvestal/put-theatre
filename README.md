@@ -7,7 +7,7 @@ This project fetches a list of trending movies from a Trakt-powered RSS feed and
 - Only five items from the RSS feed are seeded at any time.
 - Each week the `/weekly-downloads` folder is cleared and refilled with five new torrents.
 - Magnet links are detected from standard `<link>` elements or enclosure links in the RSS feed.
-- Optionally sends an email summary with movie posters and descriptions.
+- Optionally sends an email summary with movie posters and overviews from TMDB API.
 
 ## Requirements
 
@@ -19,9 +19,10 @@ This project fetches a list of trending movies from a Trakt-powered RSS feed and
 Create a `.env` file with the following variables:
 
 ```
-RSS_URL=<RSS feed with token>
+RSS_URL=<Comma-separated list of RSS feed URLs>
 PUTIO_TOKEN=<Put.io OAuth token>
 WEEKLY_FOLDER_ID=<folder id of /weekly-downloads>
+TMDB_API_KEY=<TMDB API key for movie details>
 ```
 
 ## Usage
@@ -53,7 +54,7 @@ This project fetches a list of trending movies from an RSS feed and seeds a rota
 - Selects up to five random items from the RSS feed each run.
 - Clears the configured Put.io folder and refills it with the selected torrents.
 - Detects magnet URLs from `<link>` elements or enclosure links in the RSS feed.
-- Optionally emails a summary with posters and descriptions after seeding.
+- Optionally emails a summary with posters and overviews from TMDB API after seeding.
 
 ## Requirements
 
@@ -65,7 +66,7 @@ This project fetches a list of trending movies from an RSS feed and seeds a rota
 Create a `.env` file with the following variables:
 
 ```
-RSS_URL=<RSS feed URL>
+RSS_URL=<Comma-separated list of RSS feed URLs>
 PUTIO_TOKEN=<Put.io OAuth access token>
 WEEKLY_FOLDER_ID=<Put.io folder ID to seed>
 # optional email configuration
@@ -75,7 +76,7 @@ SMTP_USERNAME=<SMTP username>
 SMTP_PASSWORD=<SMTP password>
 EMAIL_FROM=<from address>
 EMAIL_TO=<destination address>
-OMDB_API_KEY=<OMDb API key for movie details>
+TMDB_API_KEY=<TMDB API key for movie details>
 ```
 
 ## Usage
