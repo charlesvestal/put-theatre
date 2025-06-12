@@ -1,7 +1,5 @@
 import os
-import random
 import logging
-from datetime import datetime
 from typing import List, Dict
 
 import feedparser
@@ -17,8 +15,6 @@ def load_config():
     config = {
         'RSS_URL': os.getenv('RSS_URL'),
         'PUTIO_TOKEN': os.getenv('PUTIO_TOKEN'),
-        'DOWNLOADS_FOLDER_ID': os.getenv('DOWNLOADS_FOLDER_ID'),
-        'ARCHIVE_FOLDER_ID': os.getenv('ARCHIVE_FOLDER_ID'),
         'WEEKLY_FOLDER_ID': os.getenv('WEEKLY_FOLDER_ID'),
     }
     missing = [k for k, v in config.items() if not v]
@@ -27,7 +23,8 @@ def load_config():
     return config
 
 
-def fetch_rss_items(rss_url: str) -> List[Dict[str, str]]:
+def fetch_rss_items(rss_url: str, limit: int = 5) -> List[Dict[str, str]]:
+    """Return up to ``limit`` items from the RSS feed."""
     logging.info('Fetching RSS feed')
     feed = feedparser.parse(requests.get(rss_url, timeout=10).text)
     items = []
@@ -39,7 +36,9 @@ def fetch_rss_items(rss_url: str) -> List[Dict[str, str]]:
                 break
         if magnet_url:
             items.append({'title': entry.get('title', 'unknown'), 'magnet_url': magnet_url})
-    logging.info('Found %d items in RSS', len(items))
+        if len(items) == limit:
+            break
+    logging.info('Selected %d items from RSS', len(items))
     return items
 
 
@@ -52,58 +51,40 @@ def seed_magnets(client: putiopy.Client, magnets: List[Dict[str, str]], parent_i
             logging.error('Failed to seed %s: %s', item['title'], e)
 
 
-def weekly_shuffle(client: putiopy.Client, downloads_id: int, archive_id: int, weekly_id: int):
-    logging.info('Running weekly shuffle')
-    downloads = client.File.list(parent_id=downloads_id)
-    if len(downloads) >= 10:
-        sample_10 = random.sample(downloads, 10)
-        for f in sample_10:
-            client.File.move(f.id, weekly_id)
-            logging.info('Moved %s to weekly', f.name)
-    else:
-        logging.warning('Not enough files in downloads for moving')
+def refresh_weekly(client: putiopy.Client, rss_url: str, weekly_id: int):
+    """Clear the weekly folder and seed five new torrents."""
+    logging.info('Clearing weekly folder')
+    existing = client.File.list(parent_id=weekly_id)
+    for f in existing:
+        try:
+            client.File.delete(f.id)
+            logging.info('Deleted %s', f.name)
+        except Exception as e:
+            logging.error('Failed to delete %s: %s', f.name, e)
 
-    downloads = client.File.list(parent_id=downloads_id)
-    recent_5 = sorted(downloads, key=lambda f: f.created_at, reverse=True)[:5]
-    for f in recent_5:
-        client.File.copy(f.id, weekly_id)
-        logging.info('Copied recent %s to weekly', f.name)
-
-    archive = client.File.list(parent_id=archive_id)
-    if len(archive) >= 5:
-        sample_5 = random.sample(archive, 5)
-        for f in sample_5:
-            client.File.copy(f.id, weekly_id)
-            logging.info('Copied archive %s to weekly', f.name)
-    else:
-        logging.warning('Not enough files in archive for sampling')
+    items = fetch_rss_items(rss_url, limit=5)
+    seed_magnets(client, items, weekly_id)
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Weekly Trakt Queue')
-    parser.add_argument('--seed', action='store_true', help='Fetch RSS and seed magnets')
-    parser.add_argument('--shuffle', action='store_true', help='Perform weekly shuffle')
+    parser.add_argument('--seed', action='store_true', help='Seed five torrents into the weekly folder')
+    parser.add_argument('--refresh', action='store_true', help='Clear folder and seed five new torrents')
     args = parser.parse_args()
 
-    if not args.seed and not args.shuffle:
-        parser.error('Specify --seed and/or --shuffle')
+    if not args.seed and not args.refresh:
+        parser.error('Specify --seed or --refresh')
 
     cfg = load_config()
     client = putiopy.Client(cfg['PUTIO_TOKEN'])
 
-    if args.seed:
-        items = fetch_rss_items(cfg['RSS_URL'])
-        seed_magnets(client, items, int(cfg['DOWNLOADS_FOLDER_ID']))
-
-    if args.shuffle:
-        weekly_shuffle(
-            client,
-            int(cfg['DOWNLOADS_FOLDER_ID']),
-            int(cfg['ARCHIVE_FOLDER_ID']),
-            int(cfg['WEEKLY_FOLDER_ID']),
-        )
+    if args.refresh:
+        refresh_weekly(client, cfg['RSS_URL'], int(cfg['WEEKLY_FOLDER_ID']))
+    elif args.seed:
+        items = fetch_rss_items(cfg['RSS_URL'], limit=5)
+        seed_magnets(client, items, int(cfg['WEEKLY_FOLDER_ID']))
 
 
 if __name__ == '__main__':
