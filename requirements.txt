@@ -1,0 +1,4 @@
+feedparser
+putio.py
+requests
+python-dotenv
