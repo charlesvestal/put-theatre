@@ -5,6 +5,7 @@ from typing import List, Dict
 import feedparser
 import putiopy
 import requests
+import random
 from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -27,27 +28,30 @@ def fetch_rss_items(rss_url: str, limit: int = 5) -> List[Dict[str, str]]:
     """Return up to ``limit`` items from the RSS feed."""
     logging.info('Fetching RSS feed')
     feed = feedparser.parse(requests.get(rss_url, timeout=10).text)
+    # Collect all magnet links
     items = []
     for entry in feed.entries:
         magnet_url = None
-        # Some feeds store the magnet in the <link> field, others use
-        # <link rel="enclosure"> with an explicit type.
         for link in entry.get('links', []):
             if link.get('type') == 'application/x-bittorrent' and link.get('href', '').startswith('magnet:'):
                 magnet_url = link['href']
                 break
-
         if not magnet_url:
             direct_link = entry.get('link')
             if direct_link and direct_link.startswith('magnet:'):
                 magnet_url = direct_link
-
         if magnet_url:
             items.append({'title': entry.get('title', 'unknown'), 'magnet_url': magnet_url})
-        if len(items) == limit:
-            break
-    logging.info('Selected %d items from RSS', len(items))
-    return items
+    if not items:
+        logging.info('No magnet links found in RSS')
+        return []
+    # Select random sample up to limit
+    if len(items) <= limit:
+        selected = items
+    else:
+        selected = random.sample(items, limit)
+    logging.info('Selected %d random items from RSS', len(selected))
+    return selected
 
 
 def seed_magnets(client: putiopy.Client, magnets: List[Dict[str, str]], parent_id: int):
@@ -65,10 +69,17 @@ def refresh_weekly(client: putiopy.Client, rss_url: str, weekly_id: int):
     existing = client.File.list(parent_id=weekly_id)
     for f in existing:
         try:
-            client.File.delete(f.id)
-            logging.info('Deleted %s', f.name)
+            # Delete using object method if available, otherwise fall back to delete_multi
+            if hasattr(f, 'delete'):
+                f.delete()
+                file_name = f.name
+            else:
+                file_id = f
+                file_name = str(f)
+                client.File.delete_multi([file_id])
+            logging.info('Deleted %s', file_name)
         except Exception as e:
-            logging.error('Failed to delete %s: %s', f.name, e)
+            logging.error('Failed to delete %s: %s', file_name, e)
 
     items = fetch_rss_items(rss_url, limit=5)
     seed_magnets(client, items, weekly_id)
