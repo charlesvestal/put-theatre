@@ -30,10 +30,18 @@ def fetch_rss_items(rss_url: str, limit: int = 5) -> List[Dict[str, str]]:
     items = []
     for entry in feed.entries:
         magnet_url = None
+        # Some feeds store the magnet in the <link> field, others use
+        # <link rel="enclosure"> with an explicit type.
         for link in entry.get('links', []):
             if link.get('type') == 'application/x-bittorrent' and link.get('href', '').startswith('magnet:'):
                 magnet_url = link['href']
                 break
+
+        if not magnet_url:
+            direct_link = entry.get('link')
+            if direct_link and direct_link.startswith('magnet:'):
+                magnet_url = direct_link
+
         if magnet_url:
             items.append({'title': entry.get('title', 'unknown'), 'magnet_url': magnet_url})
         if len(items) == limit:

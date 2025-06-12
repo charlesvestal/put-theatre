@@ -6,6 +6,7 @@ This project fetches a list of trending movies from a Trakt-powered RSS feed and
 
 - Only five items from the RSS feed are seeded at any time.
 - Each week the `/weekly-downloads` folder is cleared and refilled with five new torrents.
+- Magnet links are detected from standard `<link>` elements or enclosure links in the RSS feed.
 
 ## Requirements
 
